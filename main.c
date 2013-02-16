@@ -76,15 +76,6 @@ enum EAS_L2_State
    EAS_L2_READING_EOM = 3,
 };
 
-static char last_message[269];
-static char msg_buf[4][269];
-static char head_buf[4];
-static unsigned long headlen;
-static unsigned long msglen;
-static unsigned long msgno;
-
-static int frame_state;
-
 #define FREQ_MARK  2083.3                 // binary 1 freq, in Hz
 #define FREQ_SPACE 1562.5                 // binary 0 freq, in Hz
 #define FREQ_SAMP  22050                  // req'd input sampling rate, in Hz
@@ -115,6 +106,13 @@ static float eascorr_space_q[CORRLEN];
 
 static void eas_init();
 static void eas_demod(float *buffer, int length);
+
+static char msg_buf[MAX_STORE_MSG][MAX_MSG_LEN + 1];
+static char head_buf[4];
+static unsigned long headlen;
+static unsigned long msglen;
+static unsigned long msgno;
+static int frame_state;
 
 void main(int argc, char *argv[])
 {
@@ -185,6 +183,18 @@ static void eas_init()
 	}
 }
 
+static void process_start_message(const char *message)
+{
+	printf("successfully received EAS message: %s%s\n", HEADER_BEGIN, message);
+	printf("begin audio message processing\n");
+}
+
+static void process_end_message(const char *message)
+{
+	printf("complete audio message processing\n");
+	printf("successfully processed EAS message: %s%s\n", HEADER_BEGIN, message);
+}
+
 static char eas_allowed(char data)
 {
 	// determine if a character is allowed in an EAS frame
@@ -206,9 +216,13 @@ static char eas_allowed(char data)
 
 static void process_frame_char(char data)
 {
+	static int processing_good_message;
+	static char good_message[MAX_MSG_LEN + 1];
+
 	int i, j = 0;
 	char *ptr = 0;
 	int have_complete_set_of_messages;
+	int got_good_message;
 	
 	if(data)
 	{
@@ -266,7 +280,7 @@ static void process_frame_char(char data)
 			
 			// display message if verbosity permits
 			//verbprintf(7, "\n");
-			printf("EAS (part): %s%s\n", HEADER_BEGIN, msg_buf[msgno]);
+			printf("received EAS part: %s%s\n", HEADER_BEGIN, msg_buf[msgno]);
 			
 			// increment message number
 			msgno += 1;
@@ -286,41 +300,56 @@ static void process_frame_char(char data)
 			
 			if(have_complete_set_of_messages)
 			{
-				// check for message agreement; 2 of 3 must agree
-				for(i = 0; i < MAX_STORE_MSG; i++)
-				{
-					// if this message is empty or matches the one we've just 
-					// alerted the user to, ignore it.
-					if(msg_buf[i][0] == '\0')
-						continue;
+				//not currently processing a good message, that is to be determined now...
+				processing_good_message = 0;
 
-					for(j = i+1; j < MAX_STORE_MSG; j++)
+				//assume we got a good message
+				got_good_message = 1;
+
+				//clear it
+				memset(good_message, 0, MAX_MSG_LEN + 1);
+
+				//for each char in the message, we need to pick the best two out of three chars
+				for(i = 0; i < strlen(msg_buf[0]); i++)
+				{
+					if(msg_buf[0][i] == msg_buf[1][i])
+						good_message[i] = msg_buf[0][i];
+					else if(msg_buf[1][i] == msg_buf[2][i])
+						good_message[i] = msg_buf[1][i];
+					else if(msg_buf[2][i] == msg_buf[0][i])
+						good_message[i] = msg_buf[2][i];
+					else
 					{
-						// test if messages are identical and not a dupe of the
-						// last message
-						if(!strncmp(msg_buf[i], msg_buf[j], MAX_MSG_LEN))
-						{
-							// store message to prevent dupes
-							strncpy(last_message, msg_buf[j], MAX_MSG_LEN);
-							
-							// raise the alert and discontinue processing
-							//verbprintf(7, "\n");
-							printf("EAS: %s%s\n", HEADER_BEGIN, last_message);
-							i = MAX_STORE_MSG;
-							break;
-						}
+						got_good_message = 0;
+						break;
 					}
+				}
+
+				if(got_good_message)
+				{
+					process_start_message(good_message);
+					processing_good_message = 1;
+				}
+				else
+				{
 				}
 			}
 		}
 		else if(frame_state == EAS_L2_READING_EOM)
 		{
+			//complete the successful EAS message
+			if(processing_good_message)
+				process_end_message(good_message);
+
 			// raise the EOM
-			printf("EAS: %s\n", EOM);
+			printf("received EAS end of message: %s\n", EOM);
 			msgno = 0;
 
 			for(i = 0; i < MAX_STORE_MSG; i++)
 				msg_buf[i][0] = '\0';
+
+			//we completed the entire EAS message
+			processing_good_message = 0;
 		}
 
 		// go back to idle
