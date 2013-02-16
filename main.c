@@ -124,7 +124,7 @@ void main(int argc, char *argv[])
 	float fbuf[16384];
 	unsigned int fbuf_cnt = 0;
 	short *sp;
-	const char *fname = "same1.raw";
+	const char *fname = "same3.raw";
 
 	eas_init();
 
@@ -208,6 +208,7 @@ static void process_frame_char(char data)
 {
 	int i, j = 0;
 	char *ptr = 0;
+	int have_complete_set_of_messages;
 	
 	if(data)
 	{
@@ -271,29 +272,43 @@ static void process_frame_char(char data)
 			msgno += 1;
 			if(msgno >= MAX_STORE_MSG)
 				msgno = 0;
-			
-			// check for message agreement; 2 of 3 must agree
+
+			have_complete_set_of_messages = 1;
+
 			for(i = 0; i < MAX_STORE_MSG; i++)
 			{
-				// if this message is empty or matches the one we've just 
-				// alerted the user to, ignore it.
-				if(msg_buf[i][0] == '\0' || !strncmp(last_message, msg_buf[i], MAX_MSG_LEN))
-					continue;
-
-				for(j = i+1; j < MAX_STORE_MSG; j++)
+				if(msg_buf[i][0] == '\0')
 				{
-					// test if messages are identical and not a dupe of the
-					// last message
-					if(!strncmp(msg_buf[i], msg_buf[j], MAX_MSG_LEN))
+					have_complete_set_of_messages = 0;
+					break;
+				}
+			}
+			
+			if(have_complete_set_of_messages)
+			{
+				// check for message agreement; 2 of 3 must agree
+				for(i = 0; i < MAX_STORE_MSG; i++)
+				{
+					// if this message is empty or matches the one we've just 
+					// alerted the user to, ignore it.
+					if(msg_buf[i][0] == '\0')
+						continue;
+
+					for(j = i+1; j < MAX_STORE_MSG; j++)
 					{
-						// store message to prevent dupes
-						strncpy(last_message, msg_buf[j], MAX_MSG_LEN);
-						
-						// raise the alert and discontinue processing
-						//verbprintf(7, "\n");
-						printf("EAS: %s%s\n", HEADER_BEGIN, last_message);
-						i = MAX_STORE_MSG;
-						break;
+						// test if messages are identical and not a dupe of the
+						// last message
+						if(!strncmp(msg_buf[i], msg_buf[j], MAX_MSG_LEN))
+						{
+							// store message to prevent dupes
+							strncpy(last_message, msg_buf[j], MAX_MSG_LEN);
+							
+							// raise the alert and discontinue processing
+							//verbprintf(7, "\n");
+							printf("EAS: %s%s\n", HEADER_BEGIN, last_message);
+							i = MAX_STORE_MSG;
+							break;
+						}
 					}
 				}
 			}
@@ -302,6 +317,10 @@ static void process_frame_char(char data)
 		{
 			// raise the EOM
 			printf("EAS: %s\n", EOM);
+			msgno = 0;
+
+			for(i = 0; i < MAX_STORE_MSG; i++)
+				msg_buf[i][0] = '\0';
 		}
 
 		// go back to idle
