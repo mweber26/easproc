@@ -2,7 +2,7 @@
 <VisualStudioProject
 	ProjectType="Visual C++"
 	Version="9.00"
-	Name="eas_decode"
+	Name="easproc"
 	ProjectGUID="{A0C27C56-1F5D-4A58-9AF0-B09F975756B3}"
 	RootNamespace="eas_decode"
 	Keyword="Win32Proj"
@@ -165,6 +165,14 @@
 	<References>
 	</References>
 	<Files>
+		<File
+			RelativePath=".\decode.c"
+			>
+		</File>
+		<File
+			RelativePath=".\encode.c"
+			>
+		</File>
 		<File
 			RelativePath=".\main.c"
 			>

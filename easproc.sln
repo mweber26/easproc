@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 10.00
 # Visual Studio 2008
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "eas_decode", "eas_decode.vcproj", "{A0C27C56-1F5D-4A58-9AF0-B09F975756B3}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "easproc", "easproc.vcproj", "{A0C27C56-1F5D-4A58-9AF0-B09F975756B3}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
